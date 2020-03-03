@@ -18,10 +18,10 @@ with open('symtables/readable_tables.txt', 'r') as f:
     readable = [str(a).strip() for a in f]
 
 attribues = {}
-for game_name in readable:
-    attribues[game_name] = {}
+for gn in readable:
+    attribues[gn] = {}
 
-    with open('symtables/' + game_name + '.out', 'r') as f:
+    with open('symtables/' + gn + '.out', 'r') as f:
         try:
             for line in f:
                 if "attribute" in line.lower():
@@ -29,9 +29,9 @@ for game_name in readable:
                     if len(split) < 2:
                         continue
                     idx, attr = int(split[0].split(' ')[1]), split[1]
-                    attribues[game_name][idx] = attr
+                    attribues[gn][idx] = attr
         except UnicodeDecodeError:
-            print("Decode error:", game_name)
+            print("Decode error:", gn)
             continue
 
 
@@ -208,35 +208,36 @@ def build_dataset(rom):
         diff2acts = find_valid_actions(env, state, candidate_actions)
 
         valid_actions = diff2acts.values()
+        copy_env = env.copy()
 
         for v in valid_actions:
-            vobs, vrew, vdone, vinfo = env.step(v)
+            vobs, vrew, vdone, vinfo = copy_env.step(v)
 
-            vscore = env.get_score()
-            vstate = env.get_state()
+            vscore = copy_env.get_score()
+            vstate = copy_env.get_state()
             vfname = pjoin('saves', str(uuid.uuid4()) + '.pkl')
             pickle.dump(state, open(vfname, 'wb'))
 
-            vobs_desc = env.step('look')[0]
-            env.set_state(vstate)
-            vinv_desc = env.step('inventory')[0]
-            env.set_state(state)
+            vobs_desc = copy_env.step('look')[0]
+            copy_env.set_state(vstate)
+            vinv_desc = copy_env.step('inventory')[0]
+            copy_env.set_state(state)
 
-            vlocation = env.get_player_location()
+            vlocation = copy_env.get_player_location()
             vlocation_json = {'name': vlocation.name, 'num': vlocation.num}
 
-            vsurrounding_objs, vinv_objs = identify_interactive_objects(env, vobs_desc, vinv_desc, vstate)
+            vsurrounding_objs, vinv_objs = identify_interactive_objects(copy_env, vobs_desc, vinv_desc, vstate)
 
-            vinteractive_objs = [obj[0] for obj in env.identify_interactive_objects(use_object_tree=True)]
+            vinteractive_objs = [obj[0] for obj in copy_env.identify_interactive_objects(use_object_tree=True)]
             vcandidate_actions = act_gen.generate_actions(vinteractive_objs)
-            vdiff2acts = find_valid_actions(env, vstate, vcandidate_actions)
+            vdiff2acts = find_valid_actions(copy_env, vstate, vcandidate_actions)
 
-            vsurrounding = utl.get_subtree(env.get_player_location().child, env.get_world_objects())
-            vtriples = tree_to_triple(env.get_player_location(), env.get_player_object(), vsurrounding, v, vlocation, rom)
-            vdiff = str(env._get_world_diff())
+            vsurrounding = utl.get_subtree(copy_env.get_player_location().child, copy_env.get_world_objects())
+            vtriples = tree_to_triple(copy_env.get_player_location(), copy_env.get_player_object(), vsurrounding, v, vlocation, rom)
+            vdiff = str(copy_env._get_world_diff())
             vtriple_diff = graph_diff(prev_triples, vtriples)
 
-            if env.get_world_state_hash() not in visited:
+            if copy_env.get_world_state_hash() not in visited:
                 """print({
                     'rom': bindings['name'],
                     'walkthrough_act': v,
@@ -271,10 +272,9 @@ def build_dataset(rom):
                     'graph_diff': vtriple_diff,
                     'score': vscore
                 })
-            visited.add(env.get_world_state_hash())
-            env.set_state(vstate)
-
-        env.set_state(state)
+            visited.add(copy_env.get_world_state_hash())
+            copy_env.set_state(vstate)
+        copy_env.close()
 
         obs, rew, done, info = env.step(act)
         surrounding = utl.get_subtree(env.get_player_location().child, env.get_world_objects())
@@ -321,10 +321,10 @@ def build_dataset(rom):
         visited.add(env.get_world_state_hash())
 
         prev_triples = triples
-    with open(rom.split('/')[-1].split('.')[0] + '_data.json', 'w') as fi:
-        json.dump(data, fi)
-    print(rom + " size:" + str(len(data)))
-    print(len(visited))
+        with open(rom.split('/')[-1].split('.')[0] + '_data.json', 'w') as fi:
+            json.dump(data, fi)
+    print("Size:", str(len(data)))
+    env.close()
 
     return data
 
