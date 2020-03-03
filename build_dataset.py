@@ -8,6 +8,70 @@ import uuid
 import os
 from os.path import join as pjoin
 from jericho import util as utl
+from jericho import defines
+from glob import glob
+
+
+MOVE_ACTIONS = 'north/south/west/east/northwest/southwest/northeast/southeast/up/down/enter/exit'.split('/')
+
+with open('symtables/readable_tables.txt', 'r') as f:
+    readable = [str(a).strip() for a in f]
+
+attribues = {}
+for gn in readable:
+    attribues[gn] = {}
+
+    with open('symtables/' + gn + '.out', 'r') as f:
+        try:
+            for line in f:
+                if "attribute" in line.lower():
+                    split = line.split('\t')
+                    if len(split) < 2:
+                        continue
+                    idx, attr = int(split[0].split(' ')[1]), split[1]
+                    attribues[gn][idx] = attr
+        except UnicodeDecodeError:
+            print("Decode error:", gn)
+            continue
+
+
+def tree_to_triple(cur_loc, you, sub_tree, prev_act, prev_loc, game_name):
+    triples = set()
+
+    triples.add(('you', 'in', cur_loc.name))
+    if prev_act.lower() in MOVE_ACTIONS:
+        triples.add((cur_loc.name, prev_act.replace(' ', '_'), prev_loc.name))
+
+    if prev_act.lower() in defines.ABBRV_DICT.keys():
+        prev_act = defines.ABBRV_DICT[prev_act.lower()]
+        triples.add((cur_loc.name, prev_act.replace(' ', '_'), prev_loc.name))
+
+    for obj in sub_tree:
+        if obj.num == you.num:
+            continue
+        elif obj.parent == you.num:
+            triples.add(('you', 'have', obj.name))
+        elif obj.parent == cur_loc.num:
+            triples.add((obj.name, 'in', cur_loc.name))
+        else:
+            cur_parent = [a.name for a in sub_tree if a.num == obj.parent]
+
+            triples.add((obj.name, 'in', cur_parent[0]))
+
+        if game_name in readable:
+            cur_attrs = attribues[game_name]
+            obj_attrs = obj.attr
+            for oatr in obj_attrs:
+                if oatr in cur_attrs.keys():
+                    triples.add((obj.name, 'is', cur_attrs[oatr].lower()))
+
+    return list(triples)
+
+
+def graph_diff(graph1, graph2):
+    graph1 = set(graph1)
+    graph2 = set(graph2)
+    return list((graph2 - graph1).union(graph1.intersection(graph2)))
 
 
 def identify_interactive_objects(env, obs_desc, inv_desc, state):
@@ -111,14 +175,16 @@ def find_valid_actions(env, state, candidate_actions):
     return valid_acts
 
 
-def build_dataset():
-    rom = '/home/matthew/workspace/text_agents/roms/zork1.z5'
+def build_dataset(rom):
+    print(rom)
     bindings = load_bindings(rom)
     env = FrotzEnv(rom, seed=bindings['seed'])
     walkthrough = bindings['walkthrough'].split('/')
     act_gen = TemplateActionGenerator(bindings)
 
     data = []
+    prev_triples = []
+    visited = set()
 
     for act in tqdm(walkthrough):
         score = env.get_score()
@@ -141,26 +207,137 @@ def build_dataset():
         candidate_actions = act_gen.generate_actions(interactive_objs)
         diff2acts = find_valid_actions(env, state, candidate_actions)
 
-        obs, rew, done, info = env.step(act)
-        diff = str(env._get_world_diff())
+        valid_actions = diff2acts.values()
+        copy_env = env.copy()
 
-        data.append({
-            'rom' : bindings['name'],
-            'walkthrough_act' : act,
-            'walkthrough_diff' : diff,
-            'obs_desc' : obs_desc,
-            'inv_desc' : inv_desc,
-            'inv_objs' : inv_objs,
-            'location' : location_json,
-            'surrounding_objs' : surrounding_objs,
-            'state' : fname,
-            'valid_acts' : diff2acts,
-            'score' : score
-        })
+        for v in valid_actions:
+            vobs, vrew, vdone, vinfo = copy_env.step(v)
+
+            vscore = copy_env.get_score()
+            vstate = copy_env.get_state()
+            vfname = pjoin('saves', str(uuid.uuid4()) + '.pkl')
+            pickle.dump(state, open(vfname, 'wb'))
+
+            vobs_desc = copy_env.step('look')[0]
+            copy_env.set_state(vstate)
+            vinv_desc = copy_env.step('inventory')[0]
+            copy_env.set_state(state)
+
+            vlocation = copy_env.get_player_location()
+            vlocation_json = {'name': vlocation.name, 'num': vlocation.num}
+
+            vsurrounding_objs, vinv_objs = identify_interactive_objects(copy_env, vobs_desc, vinv_desc, vstate)
+
+            vinteractive_objs = [obj[0] for obj in copy_env.identify_interactive_objects(use_object_tree=True)]
+            vcandidate_actions = act_gen.generate_actions(vinteractive_objs)
+            vdiff2acts = find_valid_actions(copy_env, vstate, vcandidate_actions)
+
+            vsurrounding = utl.get_subtree(copy_env.get_player_location().child, copy_env.get_world_objects())
+            vtriples = tree_to_triple(copy_env.get_player_location(), copy_env.get_player_object(), vsurrounding, v, vlocation, rom)
+            vdiff = str(copy_env._get_world_diff())
+            vtriple_diff = graph_diff(prev_triples, vtriples)
+
+            if copy_env.get_world_state_hash() not in visited:
+                """print({
+                    'rom': bindings['name'],
+                    'walkthrough_act': v,
+                    'walkthrough_diff': vdiff,
+                    'obs_nar' : vobs,
+                    'obs_desc': vobs_desc,
+                    'inv_desc': vinv_desc,
+                    'inv_objs': vinv_objs,
+                    'location': vlocation_json,
+                    'surrounding_objs': vsurrounding_objs,
+                    'state': vfname,
+                    'valid_acts': vdiff2acts,
+                    'prev_graph': prev_triples,
+                    'graph': vtriples,
+                    'graph_diff': vtriple_diff,
+                    'score': vscore
+                })"""
+                data.append({
+                    'rom': bindings['name'],
+                    'walkthrough_act': v,
+                    'walkthrough_diff': vdiff,
+                    'obs_nar' : vobs,
+                    'obs_desc': vobs_desc,
+                    'inv_desc': vinv_desc,
+                    'inv_objs': vinv_objs,
+                    'location': vlocation_json,
+                    'surrounding_objs': vsurrounding_objs,
+                    'state': vfname,
+                    'valid_acts': vdiff2acts,
+                    'prev_graph': prev_triples,
+                    'graph': vtriples,
+                    'graph_diff': vtriple_diff,
+                    'score': vscore
+                })
+            visited.add(copy_env.get_world_state_hash())
+            copy_env.set_state(vstate)
+        copy_env.close()
+
+        obs, rew, done, info = env.step(act)
+        surrounding = utl.get_subtree(env.get_player_location().child, env.get_world_objects())
+        triples = tree_to_triple(env.get_player_location(), env.get_player_object(), surrounding, act, location, rom)
+        diff = str(env._get_world_diff())
+        triple_diff = graph_diff(prev_triples, triples)
+
+        if env.get_world_state_hash() not in visited:
+            """print(
+                {
+                'rom' : bindings['name'],
+                'walkthrough_act' : act,
+                'walkthrough_diff' : diff,
+                'obs_nar' : obs,
+                'obs_desc' : obs_desc,
+                'inv_desc' : inv_desc,
+                'inv_objs' : inv_objs,
+                'location' : location_json,
+                'surrounding_objs' : surrounding_objs,
+                'state' : fname,
+                'valid_acts' : diff2acts,
+                'prev_graph': prev_triples,
+                'graph': triples,
+                'graph_diff': triple_diff,
+                'score' : score
+            })"""
+            data.append({
+                'rom' : bindings['name'],
+                'walkthrough_act' : act,
+                'walkthrough_diff' : diff,
+                'obs_nar' : obs,
+                'obs_desc' : obs_desc,
+                'inv_desc' : inv_desc,
+                'inv_objs' : inv_objs,
+                'location' : location_json,
+                'surrounding_objs' : surrounding_objs,
+                'state' : fname,
+                'valid_acts' : diff2acts,
+                'prev_graph': prev_triples,
+                'graph': triples,
+                'graph_diff': triple_diff,
+                'score' : score
+            })
+        visited.add(env.get_world_state_hash())
+
+        prev_triples = triples
+        with open(rom.split('/')[-1].split('.')[0] + '_data.json', 'w') as fi:
+            json.dump(data, fi)
+    print("Size:", str(len(data)))
+    env.close()
+
+    return data
+
+
+if __name__ == '__main__':
+    # data = build_dataset('roms/zork1.z5')
+    data = []
+
+    games = glob('roms/*')
+    for game in games:
+        data += build_dataset(game)
 
     with open('data.json', 'w') as f:
         json.dump(data, f)
 
-
-if __name__ == '__main__':
-    build_dataset()
+    print("Total size:", len(data))
