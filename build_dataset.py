@@ -208,15 +208,16 @@ def build_dataset(rom):
         diff2acts = find_valid_actions(env, state, candidate_actions)
 
         valid_actions = diff2acts.values()
-        copy_env = env.copy()
 
         for v in valid_actions:
+            copy_env = env.copy()
+
             vobs, vrew, vdone, vinfo = copy_env.step(v)
 
             vscore = copy_env.get_score()
             vstate = copy_env.get_state()
             vfname = pjoin('saves', str(uuid.uuid4()) + '.pkl')
-            pickle.dump(state, open(vfname, 'wb'))
+            pickle.dump(vstate, open(vfname, 'wb'))
 
             vobs_desc = copy_env.step('look')[0]
             copy_env.set_state(vstate)
@@ -273,8 +274,7 @@ def build_dataset(rom):
                     'score': vscore
                 })
             visited.add(copy_env.get_world_state_hash())
-            copy_env.set_state(vstate)
-        copy_env.close()
+            copy_env.close()
 
         obs, rew, done, info = env.step(act)
         surrounding = utl.get_subtree(env.get_player_location().child, env.get_world_objects())
@@ -330,7 +330,6 @@ def build_dataset(rom):
 
 
 if __name__ == '__main__':
-    # data = build_dataset('roms/zork1.z5')
     data = []
 
     games = glob('roms/*')
