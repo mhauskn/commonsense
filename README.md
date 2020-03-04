@@ -9,53 +9,58 @@
 ## Example:
 ```json
 {
-    "surrounding_objs": {
-        "There's nothing special about the stairs.": [
-            "staircase"
-        ],
-        "There's nothing special about the wooden ladder.": [
-            "ladder",
-            "wooden",
-            "rickety"
-        ]
-    },
-    "walkthrough_act": "U",
+    "score": 345,
     "inv_objs": {
-        "The lamp is on.": [
-            "light",
-            "brass",
-            "lantern"
-        ],
-        "There's nothing special about the clove of garlic.": [
-            "clove",
-            "garlic"
-        ]
+      "The lamp is on.": [
+        "brass",
+        "lantern",
+        "light"                                                                                                                                                                              
+      ],
+      "There are lots of jewels in there.": [
+        "jewels",
+        "trunk"
+      ],
+      "There's nothing special about the screwdriver.": [
+        "screwdriver"
+      ]
     },
-    "rom": "zork1",
-    "score": 294,
+    "inv_desc": "You are carrying:\n  A trunk of jewels\n  A screwdriver\n  A brass lantern (providing light)\n\n",
     "location": {
-        "name": "Ladder Top",
-        "num": 21
+      "name": "Strange Passage",
+      "num": 51
     },
-    "inv_desc": "You are carrying:\n  A clove of garlic\n  A brass lantern (providing light)\n\n",
-    "state": "saves/29644339-eddc-412f-a33f-3c6d3b09a7d1.pkl",
-    "obs_desc": "Ladder Top\nThis is a very small room. In the corner is a rickety wooden ladder, leading downward. It might be safe to descend. There is also a staircase leading upward.\n\n",
+    "walkthrough_diff": "(((4, 193),), (), ())",
+    "walkthrough_act": "E",
+    "loc_desc": "Strange Passage\nThis is a long passage. To the west is one entrance. On the east there is an old wooden door, with a large opening in it (about cyclops sized).\n\n",
+    "rom": "zork1",
+    "obs": "Strange Passage\n\n",
+    "state": "saves/37eb6dce-d247-486b-8497-9d87a9263e57.pkl",
+    "surrounding_objs": {
+      "There's nothing special about the way.": [
+        "passage",
+        "long"
+      ],
+      "There are lots of jewels in there.": [
+        "old"
+      ]
+    },
     "valid_acts": {
-        "(((189, 21),), (), ())": "put down clove",
-        "(((164, 21),), (), ())": "put down light",
-        "(((4, 20),), (), ())": "down",
-        "((), (), ((164, 20),))": "put out light",
-        "(((4, 16),), (), ())": "up",
-        "(((210, 21),), (), ())": "throw clove at light"
-    },
-    "walkthrough_diff": "(((4, 16),), (), ())"
+      "((), (), ((164, 20),))": "put out light",
+      "(((101, 51),), (), ())": "put down old",
+      "(((164, 51),), (), ())": "put down light",
+      "(((210, 51),), (), ())": "throw screwdriver at light",
+      "(((4, 185),), (), ())": "west",
+      "(((4, 193),), (), ())": "east",
+      "(((123, 51),), (), ())": "put down screwdriver"
+    }
 },
 ```
 
 ## Fields
 Each example defines the following fields:
 * **rom**: Name of the game that generated this example.
-* **obs_desc**: Text returned by *look* command from current location.
+* **obs**: Narrative text returned by the game as a result of the last action.
+* **loc_desc**: Text returned by *look* command from current location.
 * **inv_desc**: Text returned by *inventory* command from current step.
 * **inv_objs**: Dictionary of ```{obj_description : [obj_names]}``` containing detected objects in the player's inventory.
 * **surrounding_objs**: Dictionary of ```{obj_description : [obj_names]}``` containing detected objects in the player's immediate surroundings.

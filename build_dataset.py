@@ -92,6 +92,7 @@ def find_valid_actions(env, state, candidate_actions):
         else:
             obs, rew, done, info = env.step(act)
         if env.emulator_halted():
+            print('Warning: Environment halted.')
             env.reset()
             continue
         if info['score'] != orig_score or done or env.world_changed():
@@ -115,18 +116,20 @@ def build_dataset():
     rom = '/home/matthew/workspace/text_agents/roms/zork1.z5'
     bindings = load_bindings(rom)
     env = FrotzEnv(rom, seed=bindings['seed'])
+    obs = env.reset()[0]
     walkthrough = bindings['walkthrough'].split('/')
     act_gen = TemplateActionGenerator(bindings)
 
     data = []
-
+    done = False
     for act in tqdm(walkthrough):
+        assert not done
         score = env.get_score()
         state = env.get_state()
         fname = pjoin('saves', str(uuid.uuid4()) + '.pkl')
         pickle.dump(state, open(fname,'wb'))
 
-        obs_desc = env.step('look')[0]
+        loc_desc = env.step('look')[0]
         env.set_state(state)
         inv_desc = env.step('inventory')[0]
         env.set_state(state)
@@ -134,29 +137,34 @@ def build_dataset():
         location = env.get_player_location()
         location_json = {'name':location.name, 'num': location.num}
 
-        surrounding_objs, inv_objs = identify_interactive_objects(env, obs_desc, inv_desc, state)
+        surrounding_objs, inv_objs = identify_interactive_objects(env, loc_desc, inv_desc, state)
         # inv_objs, surrounding_objs = get_objs(env)
 
         interactive_objs = [obj[0] for obj in env.identify_interactive_objects(use_object_tree=True)]
         candidate_actions = act_gen.generate_actions(interactive_objs)
         diff2acts = find_valid_actions(env, state, candidate_actions)
 
-        obs, rew, done, info = env.step(act)
+        obs_new, rew, done, info = env.step(act)
         diff = str(env._get_world_diff())
+        if not str(diff) in diff2acts:
+            print('WalkthroughAct: {} Diff: {} Obs: {}'.format(act, diff, utl.clean(obs_new)))
 
         data.append({
-            'rom' : bindings['name'],
-            'walkthrough_act' : act,
+            'rom'              : bindings['name'],
+            'walkthrough_act'  : act,
             'walkthrough_diff' : diff,
-            'obs_desc' : obs_desc,
-            'inv_desc' : inv_desc,
-            'inv_objs' : inv_objs,
-            'location' : location_json,
+            'obs'              : obs,
+            'loc_desc'         : loc_desc,
+            'inv_desc'         : inv_desc,
+            'inv_objs'         : inv_objs,
+            'location'         : location_json,
             'surrounding_objs' : surrounding_objs,
-            'state' : fname,
-            'valid_acts' : diff2acts,
-            'score' : score
+            'state'            : fname,
+            'valid_acts'       : diff2acts,
+            'score'            : score
         })
+
+        obs = obs_new
 
     with open('data.json', 'w') as f:
         json.dump(data, f)
