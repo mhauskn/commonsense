@@ -9,53 +9,119 @@
 ## Example:
 ```json
 {
-    "surrounding_objs": {
-        "There's nothing special about the stairs.": [
-            "staircase"
-        ],
-        "There's nothing special about the wooden ladder.": [
-            "ladder",
-            "wooden",
-            "rickety"
-        ]
-    },
-    "walkthrough_act": "U",
-    "inv_objs": {
-        "The lamp is on.": [
-            "light",
-            "brass",
-            "lantern"
-        ],
-        "There's nothing special about the clove of garlic.": [
-            "clove",
-            "garlic"
-        ]
-    },
     "rom": "zork1",
-    "score": 294,
+    "walkthrough_act": "Open window",
+    "walkthrough_diff": "((), ((235, 11),), ())",
+    "obs": "Behind House\nYou are behind the white house. A path leads into the forest to the east. In one corner of the house there is a small window which is slightly ajar.\n\n",
+    "loc_desc": "Behind House\nYou are behind the white house. A path leads into the forest to the east. In one corner of the house there is a small window which is slightly ajar.\n\n",
+    "inv_desc": "You are carrying:\n  A jewel-encrusted egg\n\n",
+    "inv_objs": {
+      "The jewel encrusted egg is closed.": [
+        "egg"
+      ]
+    },
     "location": {
-        "name": "Ladder Top",
-        "num": 21
+      "name": "Behind House",
+      "num": 79
     },
-    "inv_desc": "You are carrying:\n  A clove of garlic\n  A brass lantern (providing light)\n\n",
-    "state": "saves/29644339-eddc-412f-a33f-3c6d3b09a7d1.pkl",
-    "obs_desc": "Ladder Top\nThis is a very small room. In the corner is a rickety wooden ladder, leading downward. It might be safe to descend. There is also a staircase leading upward.\n\n",
+    "surrounding_objs": {
+      "The window is slightly ajar, but not enough to allow entry.": [
+        "small",
+        "window"
+      ],
+      "The house is a beautiful colonial house which is painted white. It is clear that the owners must have been extremely wealthy.": [
+        "white",
+        "house"
+      ],
+      "There's nothing special about the way.": [
+        "path"
+      ]
+    },
+    "state": "saves/f461488f-3085-4f5a-ac2f-bd424561e8c6.pkl",
     "valid_acts": {
-        "(((189, 21),), (), ())": "put down clove",
-        "(((164, 21),), (), ())": "put down light",
-        "(((4, 20),), (), ())": "down",
-        "((), (), ((164, 20),))": "put out light",
-        "(((4, 16),), (), ())": "up",
-        "(((210, 21),), (), ())": "throw clove at light"
+      "((), ((235, 11),), ())": "open small",
+      "(((86, 4),), (), ())": "take on egg",
+      "(((87, 79),), (), ())": "put down egg",
+      "(((4, 80),), ((80, 3),), ())": "south",
+      "(((87, 79), (86, 79)), (), ())": "throw egg at small",
+      "(((4, 81),), (), ())": "north",
+      "(((4, 74),), ((74, 3),), ())": "east"
     },
-    "walkthrough_diff": "(((4, 16),), (), ())"
-},
+    "prev_graph": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "North House",
+        "south",
+        "Forest Path"
+      ],
+      [
+        "you",
+        "in",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "graph": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "you",
+        "in",
+        "Behind House"
+      ],
+      [
+        "Behind House",
+        "east",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "graph_diff": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "you",
+        "in",
+        "Behind House"
+      ],
+      [
+        "Behind House",
+        "east",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "score": 5
+  }
 ```
 
 ## Fields
 Each example defines the following fields:
 * **rom**: Name of the game that generated this example.
-* **obs_desc**: Text returned by *look* command from current location.
+* **obs**: Narrative text returned by the game as a result of the last action.
+* **loc_desc**: Text returned by *look* command from current location.
 * **inv_desc**: Text returned by *inventory* command from current step.
 * **inv_objs**: Dictionary of ```{obj_description : [obj_names]}``` containing detected objects in the player's inventory.
 * **surrounding_objs**: Dictionary of ```{obj_description : [obj_names]}``` containing detected objects in the player's immediate surroundings.
@@ -65,6 +131,9 @@ Each example defines the following fields:
 * **walkthrough_act**: Action taken by the walkthrough from the current state.
 * **walkthrough_diff**: ```world_diff``` corresponding to taking the walkthrough action.
 * **valid_acts**: list of ```world_diff : action_str```. The important part here is the world_diff since there are many action strings that can result in the same world diff.
+* **prev_graph**: list of lists of ```subject, relation, object``` of knowledge graph for previous step
+* **graph**: list of lists of ```subject, relation, object``` of knowledge graph for current step
+* **graph_diff**: set difference between previous and current knowledge graphs
 
 ## Possible Tasks (a partial list...)
 * **Predict walkthrough actions**: Predict the ```walkthrough_act``` for a given example.

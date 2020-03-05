@@ -31,7 +31,7 @@ def predict_walkthrough_actions():
         state = pickle.load(open(example['state'],'rb'))
         env.set_state(state)
         gold_diff = example['walkthrough_diff']
-        action_prediction = action_predictor(example['obs_desc'])
+        action_prediction = action_predictor(example['obs'])
         env.step(action_prediction)
         actual_diff = str(env._get_world_diff())
         if actual_diff == gold_diff:
@@ -59,7 +59,7 @@ def predict_examinable_objects():
         env.set_state(state)
 
         # Get description by examining each predicted object
-        predicted_objects = obj_identifier(example['obs_desc'])
+        predicted_objects = obj_identifier(example['obs'])
         pred_obj_descriptions = []
         for predicted_obj in predicted_objects:
             obj_desc, _, _, _ = env.step('examine ' + predicted_obj)
@@ -67,6 +67,9 @@ def predict_examinable_objects():
             env.set_state(state)
 
         gt_obj_descriptions = example['surrounding_objs'].keys()
+
+        if len(gt_obj_descriptions) <= 0:
+            continue
 
         # Computer recall over GT predictions
         correct, total = 0, 0
@@ -105,7 +108,7 @@ def predict_valid_actions():
         env.set_state(state)
 
         # Get description by examining each predicted object
-        predicted_actions = valid_action_predictor(example['obs_desc'])
+        predicted_actions = valid_action_predictor(example['obs'])
         pred_action_diffs = []
         for predicted_act in predicted_actions:
             env.step(predicted_act)
