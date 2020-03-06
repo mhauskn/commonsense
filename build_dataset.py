@@ -1,13 +1,80 @@
-import sys
 from jericho import *
 from jericho.template_action_generator import TemplateActionGenerator
 from tqdm import tqdm
 import json
 import pickle
 import uuid
-import os
 from os.path import join as pjoin
 from jericho import util as utl
+from jericho import defines
+
+
+def load_attributes():
+    global attributes
+    global readable
+    global MOVE_ACTIONS
+    MOVE_ACTIONS = 'north/south/west/east/northwest/southwest/northeast/southeast/up/down/enter/exit'.split('/')
+
+    with open('symtables/readable_tables.txt', 'r') as f:
+        readable = [str(a).strip() for a in f]
+
+    attributes = {}
+    for gn in readable:
+        attributes[gn] = {}
+
+        with open('symtables/' + gn + '.out', 'r') as f:
+            try:
+                for line in f:
+                    if "attribute" in line.lower():
+                        split = line.split('\t')
+                        if len(split) < 2:
+                            continue
+                        idx, attr = int(split[0].split(' ')[1]), split[1]
+                        attributes[gn][idx] = attr.strip()
+            except UnicodeDecodeError:
+                print("Decode error:", gn)
+                continue
+
+
+def tree_to_triple(cur_loc, you, sub_tree, prev_act, prev_loc, game_name):
+    game_name = game_name.split('/')[-1]
+    triples = set()
+
+    triples.add(('you', 'in', cur_loc.name))
+    if prev_act is not None:
+        if prev_act.lower() in MOVE_ACTIONS:
+            triples.add((cur_loc.name, prev_act.replace(' ', '_'), prev_loc.name))
+
+        if prev_act.lower() in defines.ABBRV_DICT.keys() and prev_loc is not None:
+            prev_act = defines.ABBRV_DICT[prev_act.lower()]
+            triples.add((cur_loc.name, prev_act.replace(' ', '_'), prev_loc.name))
+
+    for obj in sub_tree:
+        if obj.num == you.num:
+            continue
+        elif obj.parent == you.num:
+            triples.add(('you', 'have', obj.name))
+        elif obj.parent == cur_loc.num:
+            triples.add((obj.name, 'in', cur_loc.name))
+        else:
+            cur_parent = [a.name for a in sub_tree if a.num == obj.parent]
+
+            triples.add((obj.name, 'in', cur_parent[0]))
+
+        if game_name in readable:
+            cur_attrs = attributes[game_name]
+            obj_attrs = obj.attr
+            for oatr in obj_attrs:
+                if oatr in cur_attrs.keys():
+                    triples.add((obj.name, 'is', cur_attrs[oatr].lower()))
+
+    return list(triples)
+
+
+def graph_diff(graph1, graph2):
+    graph1 = set(graph1)
+    graph2 = set(graph2)
+    return list((graph2 - graph1).union(graph1.intersection(graph2)))
 
 
 def identify_interactive_objects(env, obs_desc, inv_desc, state):
@@ -113,7 +180,7 @@ def find_valid_actions(env, state, candidate_actions):
 
 
 def build_dataset():
-    rom = '/home/matthew/workspace/text_agents/roms/zork1.z5'
+    rom = 'roms/zork1.z5'
     bindings = load_bindings(rom)
     env = FrotzEnv(rom, seed=bindings['seed'])
     obs = env.reset()[0]
@@ -121,6 +188,9 @@ def build_dataset():
     act_gen = TemplateActionGenerator(bindings)
 
     data = []
+    prev_triples = []
+    prev_location = None
+    prev_act = None
     done = False
     for act in tqdm(walkthrough):
         assert not done
@@ -143,6 +213,9 @@ def build_dataset():
         interactive_objs = [obj[0] for obj in env.identify_interactive_objects(use_object_tree=True)]
         candidate_actions = act_gen.generate_actions(interactive_objs)
         diff2acts = find_valid_actions(env, state, candidate_actions)
+        surrounding = utl.get_subtree(env.get_player_location().child, env.get_world_objects())
+        triples = tree_to_triple(env.get_player_location(), env.get_player_object(), surrounding, prev_act, prev_location, rom)
+        triple_diff = graph_diff(prev_triples, triples)
 
         obs_new, rew, done, info = env.step(act)
         diff = str(env._get_world_diff())
@@ -161,9 +234,15 @@ def build_dataset():
             'surrounding_objs' : surrounding_objs,
             'state'            : fname,
             'valid_acts'       : diff2acts,
+            'prev_graph'       : prev_triples,
+            'graph'            : triples,
+            'graph_diff'       : triple_diff,
             'score'            : score
         })
 
+        prev_triples = triples
+        prev_location = location
+        prev_act = act
         obs = obs_new
 
     with open('data.json', 'w') as f:
@@ -171,4 +250,5 @@ def build_dataset():
 
 
 if __name__ == '__main__':
+    load_attributes()
     build_dataset()

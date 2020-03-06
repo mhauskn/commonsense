@@ -9,51 +9,112 @@
 ## Example:
 ```json
 {
-    "score": 345,
-    "inv_objs": {
-      "The lamp is on.": [
-        "brass",
-        "lantern",
-        "light"                                                                                                                                                                              
-      ],
-      "There are lots of jewels in there.": [
-        "jewels",
-        "trunk"
-      ],
-      "There's nothing special about the screwdriver.": [
-        "screwdriver"
-      ]
-    },
-    "inv_desc": "You are carrying:\n  A trunk of jewels\n  A screwdriver\n  A brass lantern (providing light)\n\n",
-    "location": {
-      "name": "Strange Passage",
-      "num": 51
-    },
-    "walkthrough_diff": "(((4, 193),), (), ())",
-    "walkthrough_act": "E",
-    "loc_desc": "Strange Passage\nThis is a long passage. To the west is one entrance. On the east there is an old wooden door, with a large opening in it (about cyclops sized).\n\n",
     "rom": "zork1",
-    "obs": "Strange Passage\n\n",
-    "state": "saves/37eb6dce-d247-486b-8497-9d87a9263e57.pkl",
-    "surrounding_objs": {
-      "There's nothing special about the way.": [
-        "passage",
-        "long"
-      ],
-      "There are lots of jewels in there.": [
-        "old"
+    "walkthrough_act": "Open window",
+    "walkthrough_diff": "((), ((235, 11),), ())",
+    "obs": "Behind House\nYou are behind the white house. A path leads into the forest to the east. In one corner of the house there is a small window which is slightly ajar.\n\n",
+    "loc_desc": "Behind House\nYou are behind the white house. A path leads into the forest to the east. In one corner of the house there is a small window which is slightly ajar.\n\n",
+    "inv_desc": "You are carrying:\n  A jewel-encrusted egg\n\n",
+    "inv_objs": {
+      "The jewel encrusted egg is closed.": [
+        "egg"
       ]
     },
+    "location": {
+      "name": "Behind House",
+      "num": 79
+    },
+    "surrounding_objs": {
+      "The window is slightly ajar, but not enough to allow entry.": [
+        "small",
+        "window"
+      ],
+      "The house is a beautiful colonial house which is painted white. It is clear that the owners must have been extremely wealthy.": [
+        "white",
+        "house"
+      ],
+      "There's nothing special about the way.": [
+        "path"
+      ]
+    },
+    "state": "saves/f461488f-3085-4f5a-ac2f-bd424561e8c6.pkl",
     "valid_acts": {
-      "((), (), ((164, 20),))": "put out light",
-      "(((101, 51),), (), ())": "put down old",
-      "(((164, 51),), (), ())": "put down light",
-      "(((210, 51),), (), ())": "throw screwdriver at light",
-      "(((4, 185),), (), ())": "west",
-      "(((4, 193),), (), ())": "east",
-      "(((123, 51),), (), ())": "put down screwdriver"
-    }
-},
+      "((), ((235, 11),), ())": "open small",
+      "(((86, 4),), (), ())": "take on egg",
+      "(((87, 79),), (), ())": "put down egg",
+      "(((4, 80),), ((80, 3),), ())": "south",
+      "(((87, 79), (86, 79)), (), ())": "throw egg at small",
+      "(((4, 81),), (), ())": "north",
+      "(((4, 74),), ((74, 3),), ())": "east"
+    },
+    "prev_graph": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "North House",
+        "south",
+        "Forest Path"
+      ],
+      [
+        "you",
+        "in",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "graph": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "you",
+        "in",
+        "Behind House"
+      ],
+      [
+        "Behind House",
+        "east",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "graph_diff": [
+      [
+        "you",
+        "have",
+        "jewel-encrusted egg"
+      ],
+      [
+        "you",
+        "in",
+        "Behind House"
+      ],
+      [
+        "Behind House",
+        "east",
+        "North House"
+      ],
+      [
+        "golden clockwork canary",
+        "in",
+        "jewel-encrusted egg"
+      ]
+    ],
+    "score": 5
+  }
 ```
 
 ## Fields
@@ -70,6 +131,9 @@ Each example defines the following fields:
 * **walkthrough_act**: Action taken by the walkthrough from the current state.
 * **walkthrough_diff**: ```world_diff``` corresponding to taking the walkthrough action.
 * **valid_acts**: list of ```world_diff : action_str```. The important part here is the world_diff since there are many action strings that can result in the same world diff.
+* **prev_graph**: list of lists of ```subject, relation, object``` of knowledge graph for previous step
+* **graph**: list of lists of ```subject, relation, object``` of knowledge graph for current step
+* **graph_diff**: set difference between previous and current knowledge graphs
 
 ## Possible Tasks (a partial list...)
 * **Predict walkthrough actions**: Predict the ```walkthrough_act``` for a given example.
